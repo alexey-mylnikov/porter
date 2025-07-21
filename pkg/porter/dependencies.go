@@ -100,6 +100,7 @@ func (e *dependencyExecutioner) Execute(ctx context.Context) error {
 		if !e.sharedActionResolver(ctx, dep) {
 			return nil
 		}
+
 		err := e.executeDependency(ctx, dep)
 		if err != nil {
 			return err
@@ -368,13 +369,14 @@ func (e *dependencyExecutioner) runDependencyv2(ctx context.Context, dep *queued
 
 			// For now, assume it's okay to give the dependency the same credentials as the parent
 			depInstallation.CredentialSets = e.parentInstallation.CredentialSets
-			if err = e.Installations.InsertInstallation(ctx, depInstallation); err != nil {
+			if err := e.Installations.InsertInstallation(ctx, depInstallation); err != nil {
 				return err
 			}
-
+		} else {
 			return err
 		}
 	}
+
 	//We save the installation
 	e.depArgs.Installation = depInstallation
 

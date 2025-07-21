@@ -10,7 +10,9 @@ import (
 // specified output parameter source (name).
 func (m *RuntimeManifest) ReadDependencyOutputValue(ref manifest.DependencyOutputReference) (string, error) {
 	ps := manifest.GetParameterSourceForDependency(ref)
+
 	psEnvVar := manifest.ParamToEnvVar(ps)
+
 	output, ok := m.config.LookupEnv(psEnvVar)
 	if !ok {
 		err := fmt.Errorf("bundle dependency %s output %s was not passed into the runtime", ref.Dependency, ref.Output)

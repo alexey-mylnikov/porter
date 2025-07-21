@@ -685,8 +685,14 @@ func (p *Porter) resolveParameterSources(ctx context.Context, bun cnab.ExtendedB
 				outputName = source.OutputName
 			case cnab.DependencyOutputParameterSource:
 				// TODO(carolynvs): does this need to take namespace into account
-				installationName = bun.BuildPrerequisiteInstallationName(installation.Name, source.Dependency)
 				outputName = source.OutputName
+
+				// TODO(alexey-mylnikov): search installations by name and labels, search outputs by installation id for depsv2
+				if bun.HasDependenciesV2() {
+					installationName = source.Dependency
+				} else {
+					installationName = bun.BuildPrerequisiteInstallationName(installation.Name, source.Dependency)
+				}
 			}
 
 			output, err := p.Installations.GetLastOutput(ctx, installation.Namespace, installationName, outputName)

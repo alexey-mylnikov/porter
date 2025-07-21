@@ -8,6 +8,7 @@ import (
 	"github.com/cnabio/cnab-go/driver"
 	"github.com/cnabio/cnab-go/driver/docker"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 )
 
 const (
@@ -75,6 +76,28 @@ func (r *Runtime) newDriver(driverName string, args ActionArguments) (driver.Dri
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if d == nil {
+		d = &docker.Driver{}
+	}
+	driverImpl, err = func(dr *docker.Driver) (driver.Driver, error) {
+		dr.AddConfigurationOptions(func(cfg *container.Config, hostCfg *container.HostConfig) error {
+			hostCfg.PortBindings = map[nat.Port][]nat.PortBinding{
+				"2345/tcp": []nat.PortBinding{
+					{
+						HostIP:   "127.0.0.1",
+						HostPort: "22345",
+					},
+				},
+			}
+			return nil
+		})
+
+		return driver.Driver(dr), nil
+	}(d)
+	if err != nil {
+		return nil, err
 	}
 
 	if configurable, ok := driverImpl.(driver.Configurable); ok {
