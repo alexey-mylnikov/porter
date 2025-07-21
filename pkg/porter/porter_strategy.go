@@ -67,9 +67,7 @@ func (s PorterSecretStrategy) Resolve(ctx context.Context, keyName string, keyVa
 
 	// TODO(PEP003): How do we want to re-resolve credentials passed to the root bundle? They aren't recorded so it's not a simple lookup
 	if wiring.Credential != "" {
-
-	}
-	else if wiring.Parameter != "" {
+	} else if wiring.Parameter != "" {
 		// TODO(PEP003): Resolve a parameter from another job that has not run yet
 		// IS THIS ACTUALLY A PROBLEM? We pass creds/params from the root job, which we need to deal with, but otherwise we only pass outputs from non-root jobs
 		// 1. Find the workflow definition from the db (need a way to track "current" workflow)

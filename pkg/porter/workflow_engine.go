@@ -79,6 +79,7 @@ func (t Engine) CreateWorkflow(ctx context.Context, opts CreateWorkflowOptions) 
 			var inst storage.Installation
 			if tn.IsRoot() {
 				inst = opts.Installation
+				fmt.Printf("CreateWorkflow: tn.IsRoot: inst.Bundle: %+v\n", inst.Bundle)
 			} else {
 				// TODO(PEP003?): generate a unique installation name, e.g. ROOTINSTALLATION-DEPKEY-SUFFIX
 				// I think we discussed this in a meeting? go look for notes or suggestions
@@ -86,6 +87,8 @@ func (t Engine) CreateWorkflow(ctx context.Context, opts CreateWorkflowOptions) 
 				instName := strings.Replace(tn.Key, "root/", opts.Installation.Name+"/", 1)
 				inst = storage.NewInstallation(t.namespace, instName)
 				inst.Bundle = storage.NewOCIReferenceParts(tn.Reference.Reference)
+
+				fmt.Printf("CreateWorkflow: !tn.IsRoot: inst.Bundle: %+v\n", inst.Bundle)
 				// TODO(PEP003): Add labels so that we know who is the parent installation
 
 				// Populate the dependency's credentials from the wiring
@@ -114,6 +117,8 @@ func (t Engine) CreateWorkflow(ctx context.Context, opts CreateWorkflowOptions) 
 					requiredJobs = append(requiredJobs, requiredKey)
 				}
 			}
+
+			fmt.Printf("CreateWorkflow: inst: %+v\n", inst)
 
 			jobs[tn.Key] = &storage.Job{
 				Action:       cnab.ActionInstall, // TODO(PEP003): eventually this needs to support all actions

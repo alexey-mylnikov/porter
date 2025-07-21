@@ -38,7 +38,10 @@ func (p *Porter) ExecuteBundleAndDependencies(ctx context.Context, installation 
 	depsv2 := p.useWorkflowEngine(bundleRef.Definition)
 	span.SetAttributes(attribute.Bool("deps-v2", depsv2))
 
+	fmt.Printf("ExecuteBundleAndDependencies")
+
 	if depsv2 {
+		fmt.Printf("Using experimental feature deps-v2")
 		// TODO(PEP003): Use new getregistryoptions elsewhere that we create that
 		puller := NewBundleResolver(p.Cache, opts.Force, p.Registry, opts.GetRegistryOptions())
 		eng := NewWorkflowEngine(installation.Namespace, puller, p.Installations, p)
@@ -74,6 +77,7 @@ func (p *Porter) ExecuteBundleAndDependencies(ctx context.Context, installation 
 
 		return eng.RunWorkflow(ctx, w)
 	} else { // Fallback to the old implementation of dependencies and bundle execution
+		fmt.Printf("Using old deps")
 		if opts.DryRun {
 			span.Info("Skipping bundle execution because --dry-run was specified")
 			return nil

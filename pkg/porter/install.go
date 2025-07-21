@@ -61,6 +61,8 @@ func (p *Porter) InstallBundle(ctx context.Context, opts InstallOptions) error {
 	ctx, log := tracing.StartSpan(ctx)
 	defer log.EndSpan()
 
+	fmt.Printf("InstallBundle: opts.BundleExecutionOptions.BundleReferenceOptions: %+v\n", opts.BundleExecutionOptions.BundleReferenceOptions)
+
 	i, err := p.Installations.GetInstallation(ctx, opts.Namespace, opts.Name)
 	if err == nil {
 		// Validate that we are not overwriting an existing installation
@@ -84,10 +86,19 @@ func (p *Porter) InstallBundle(ctx context.Context, opts InstallOptions) error {
 		return err
 	}
 
-	bundleRef, err := opts.GetBundleReference(ctx, p)
+	bundleRef, err := opts.GetOptions().GetBundleReference(ctx, p)
 	if err != nil {
 		return err
 	}
+
+	fmt.Printf("InstallBundle: bundleRef: %v\n", bundleRef)
+	fmt.Printf("InstallBundle: bundleRef.Reference: %v\n", bundleRef.Reference)
+
+	// Apply Bundle reference to the installation record
+	i.Bundle = storage.NewOCIReferenceParts(bundleRef.Reference)
+
+	fmt.Printf("InstallBundle: i: %v\n", i)
+	fmt.Printf("InstallBundle: i.Bundle: %+v\n", i.Bundle)
 
 	if p.useWorkflowEngine(bundleRef.Definition) {
 		// TODO(PEP003): Use new getregistryoptions elsewhere that we create that

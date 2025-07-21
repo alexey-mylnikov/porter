@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -15,6 +16,7 @@ import (
 
 	"get.porter.sh/porter/pkg"
 	"get.porter.sh/porter/pkg/cnab"
+	v2 "get.porter.sh/porter/pkg/cnab/extensions/dependencies/v2"
 	"get.porter.sh/porter/pkg/config"
 	"get.porter.sh/porter/pkg/manifest"
 	"get.porter.sh/porter/pkg/tracing"
@@ -118,8 +120,37 @@ func (m *RuntimeManifest) loadDependencyDefinitions(ctx context.Context) error {
 	ctx, span := tracing.StartSpan(ctx)
 	defer span.EndSpan()
 
-	m.bundles = make(map[string]cnab.ExtendedBundle, len(m.Dependencies.Requires))
-	for _, dep := range m.Dependencies.Requires {
+	span.Errorf("EEEEE BBBOOOOI %s", m.DetermineDependenciesExtensionUsed())
+
+	requires := m.Dependencies.Requires
+	if m.DetermineDependenciesExtensionUsed() == cnab.DependenciesV2ExtensionKey {
+		data, ok := m.Custom[cnab.DependenciesV2ExtensionKey]
+		if !ok {
+			return span.Errorf("attempted to read dependencies from bundle but none are defined")
+		}
+
+		dataB, err := json.Marshal(data)
+		if err != nil {
+			return span.Errorf("could not marshal the untyped dependencies extension data %q: %w", string(dataB), err)
+		}
+
+		deps := v2.Dependencies{}
+		err = json.Unmarshal(dataB, &deps)
+		if err != nil {
+			return span.Errorf("could not unmarshal the dependencies extension %q: %w", string(dataB), err)
+		}
+
+		requires = make([]*manifest.Dependency, len(deps.Requires))
+		for _, r := range deps.Requires {
+			requires = append(requires, &manifest.Dependency{
+				Name:   r.Name,
+				Bundle: manifest.BundleCriteria{Reference: r.Bundle},
+			})
+		}
+	}
+
+	m.bundles = make(map[string]cnab.ExtendedBundle, len(requires))
+	for _, dep := range requires {
 		bunD, err := GetDependencyDefinition(m.config.Context, dep.Name)
 		if err != nil {
 			// TODO(PEP003): Implement passing bundle.json files for dependencies, or cut feature from v2.
@@ -247,7 +278,10 @@ type StepOutput struct {
 	Data map[string]interface{} `yaml:",inline"`
 }
 
-func (m *RuntimeManifest) buildSourceData() (map[string]interface{}, error) {
+func (m *RuntimeManifest) buildSourceData(ctx context.Context) (map[string]interface{}, error) {
+	ctx, span := tracing.StartSpan(ctx)
+	defer span.EndSpan()
+
 	data := make(map[string]interface{})
 	m.sensitiveValues = []string{}
 
@@ -308,6 +342,8 @@ func (m *RuntimeManifest) buildSourceData() (map[string]interface{}, error) {
 		depBun["version"] = depB.Version
 		depBun["description"] = depB.Description
 	}
+
+	span.Errorf("runtime_manifest.go: bun[dependencies]: %v\n", bun["dependencies"])
 
 	bun["outputs"] = m.outputs
 
@@ -431,7 +467,7 @@ func (m *RuntimeManifest) ResolveStep(ctx context.Context, stepIndex int, step *
 	log := tracing.LoggerFromContext(ctx)
 
 	// Refresh our template data
-	sourceData, err := m.buildSourceData()
+	sourceData, err := m.buildSourceData(ctx)
 	if err != nil {
 		return log.Error(fmt.Errorf("unable to build step template data: %w", err))
 	}

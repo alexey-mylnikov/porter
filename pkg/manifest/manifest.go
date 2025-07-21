@@ -276,11 +276,6 @@ func (m *Manifest) GetTemplatedDependencyOutputs() DependencyOutputReferences {
 // DetermineDependenciesExtensionUsed looks for how dependencies are used
 // by the bundle and which version of the dependency extension can be used.
 func (m *Manifest) DetermineDependenciesExtensionUsed() string {
-	if len(m.Dependencies.Requires) == 0 {
-		// dependencies are not used at all
-		return ""
-	}
-
 	// Check if v2 deps are explicitly specified
 	for _, ext := range m.Required {
 		if ext.Name == cnab.DependenciesV2ExtensionShortHand ||
@@ -294,6 +289,14 @@ func (m *Manifest) DetermineDependenciesExtensionUsed() string {
 		if dep.Installation != nil ||
 			len(dep.Credentials) > 0 ||
 			dep.Bundle.Interface != nil {
+			return cnab.DependenciesV2ExtensionKey
+		}
+	}
+
+	// Check each custom definition for use of v2 only features
+	for customName := range m.Custom {
+		if customName == cnab.DependenciesV2ExtensionShortHand ||
+			customName == cnab.DependenciesV2ExtensionKey {
 			return cnab.DependenciesV2ExtensionKey
 		}
 	}

@@ -115,6 +115,8 @@ func (p *Porter) reconcileInstallation(ctx context.Context, opts ReconcileOption
 		lastRun = &r
 	}
 
+	fmt.Sprintf("reconcileInstallation: opts.Installation.Bundle: %+v", opts.Installation.Bundle)
+
 	ref, ok, err := opts.Installation.Bundle.GetBundleReference()
 	if err != nil {
 		return storage.Installation{}, nil, span.Error(err)
