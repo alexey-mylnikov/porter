@@ -11,6 +11,7 @@ import (
 	"get.porter.sh/porter/pkg/config"
 	"get.porter.sh/porter/pkg/manifest"
 	"get.porter.sh/porter/pkg/runtime"
+	"get.porter.sh/porter/pkg/secrets"
 	"get.porter.sh/porter/pkg/storage"
 	"get.porter.sh/porter/pkg/tracing"
 	"github.com/hashicorp/go-multierror"
@@ -116,6 +117,33 @@ func (e *dependencyExecutioner) PrepareRootActionArguments(ctx context.Context) 
 	args, err := e.porter.BuildActionArgs(ctx, e.parentInstallation, e.parentAction)
 	if err != nil {
 		return cnabprovider.ActionArguments{}, err
+	}
+
+	// After installing all dependencies, we have to resolve parameters with depencies source again
+	// and update run
+	finalParams, err := e.porter.finalizeParameters(ctx, args.Installation, args.BundleReference.Definition, args.Run.Action, make(map[string]string))
+	if err != nil {
+		return cnabprovider.ActionArguments{}, err
+	}
+
+	cleanParams, err := e.porter.Sanitizer.CleanRawParameters(ctx, finalParams, args.BundleReference.Definition, args.Run.ID)
+	if err != nil {
+		return cnabprovider.ActionArguments{}, err
+	}
+
+	for i, param := range args.Run.Parameters.Parameters {
+		for _, clean := range cleanParams {
+			if clean.Name == param.Name {
+				args.Run.Parameters.Parameters[i] = secrets.SourceMap{
+					Name: clean.Name,
+					Source: secrets.Source{
+						Strategy: clean.Source.Strategy,
+						Hint:     clean.Source.Hint,
+					},
+					ResolvedValue: clean.ResolvedValue,
+				}
+			}
+		}
 	}
 
 	if args.Files == nil {
