@@ -119,8 +119,8 @@ func (e *dependencyExecutioner) PrepareRootActionArguments(ctx context.Context) 
 		return cnabprovider.ActionArguments{}, err
 	}
 
-	// After installing all dependencies, we have to resolve parameters with depencies source again
-	// and update run
+	// After installing all dependencies, we have to resolve parameters again
+	// to update parameters that have dependency output sources.
 	finalParams, err := e.porter.finalizeParameters(ctx, args.Installation, args.BundleReference.Definition, args.Run.Action, make(map[string]string))
 	if err != nil {
 		return cnabprovider.ActionArguments{}, err
@@ -131,16 +131,19 @@ func (e *dependencyExecutioner) PrepareRootActionArguments(ctx context.Context) 
 		return cnabprovider.ActionArguments{}, err
 	}
 
+	// Update parameters with dependency output sources in current run.
 	for i, param := range args.Run.Parameters.Parameters {
-		for _, clean := range cleanParams {
-			if clean.Name == param.Name {
-				args.Run.Parameters.Parameters[i] = secrets.SourceMap{
-					Name: clean.Name,
-					Source: secrets.Source{
-						Strategy: clean.Source.Strategy,
-						Hint:     clean.Source.Hint,
-					},
-					ResolvedValue: clean.ResolvedValue,
+		if ok, _ := args.BundleReference.Definition.HasDependencyOutputSource(param.Name); !ok {
+			for _, clean := range cleanParams {
+				if clean.Name == param.Name {
+					args.Run.Parameters.Parameters[i] = secrets.SourceMap{
+						Name: clean.Name,
+						Source: secrets.Source{
+							Strategy: clean.Source.Strategy,
+							Hint:     clean.Source.Hint,
+						},
+						ResolvedValue: clean.ResolvedValue,
+					}
 				}
 			}
 		}
