@@ -105,7 +105,7 @@ func XBuildPorterGRPCServer() {
 					cmdName = cmdName + ".exe"
 				}
 				out := filepath.Join(outPath, cmdName)
-				return shx.Command("go", "build", "-ldflags", ldflags, "-o", out, srcPath).
+				return shx.Command("go", "build", "-gcflags=all=-N -l", "-ldflags", ldflags, "-o", out, srcPath).
 					Env("CGO_ENABLED=0", "GO111MODULE=on", "GOOS="+goos, "GOARCH="+goarch).
 					RunV()
 			})
@@ -203,14 +203,23 @@ func GetMixins() error {
 		url     string
 		feed    string
 		version string
-	}{
-		{name: "docker"},
-		{name: "docker-compose"},
-		{name: "arm"},
-		{name: "terraform"},
-		{name: "kubernetes"},
-		{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v0.1.16"},
-	}
+	}{}
+
+	/*
+		mixins := []struct {
+			name    string
+			url     string
+			feed    string
+			version string
+		}{
+			{name: "docker"},
+			{name: "docker-compose"},
+			{name: "arm"},
+			{name: "terraform"},
+			{name: "kubernetes"},
+			{name: "helm3", feed: "https://mchorfa.github.io/porter-helm3/atom.xml", version: "v0.1.16"},
+		}
+	*/
 	var errG errgroup.Group
 	for _, mixin := range mixins {
 		mixin := mixin

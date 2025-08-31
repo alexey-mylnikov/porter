@@ -685,8 +685,48 @@ func (p *Porter) resolveParameterSources(ctx context.Context, bun cnab.ExtendedB
 				outputName = source.OutputName
 			case cnab.DependencyOutputParameterSource:
 				// TODO(carolynvs): does this need to take namespace into account
-				installationName = bun.BuildPrerequisiteInstallationName(installation.Name, source.Dependency)
 				outputName = source.OutputName
+
+				if bun.HasDependenciesV2() {
+					sharingGroup, found := installation.Labels["sh.porter.SharingGroup"]
+					if !found {
+						return nil, span.Error(fmt.Errorf("\"sh.porter.SharingGroup\" label required for dependenciesV2 installation"))
+					}
+
+					listOptions := storage.ListOptions{
+						Name:      source.Dependency,
+						Namespace: installation.Namespace,
+					}
+
+					// Old mongo's does not support search by fields with periods in his names:
+					// https://www.mongodb.com/docs/manual/reference/limits/#mongodb-limit-Restrictions-on-Field-Names
+					// listOptions.Labels = map[string]string{
+					// 	"sh.porter.SharingGroup": sharingGroup,
+					// }
+
+					depInstallations, err := p.Installations.ListInstallations(ctx, listOptions)
+					if err != nil {
+						return nil, span.Error(fmt.Errorf("could not list installations for shared dependency output to resolve %s from %s of %s: %w", parameterName, outputName, installation, err))
+					}
+
+					// so we have to select it manually
+					var depInstallation *storage.Installation
+					for i, inst := range depInstallations {
+						if inst.Labels["sh.porter.SharingGroup"] == sharingGroup {
+							depInstallation = &depInstallations[i]
+						}
+					}
+
+					// It's ok to skip resolving for root bundle, until the dependencies were not installed.
+					if depInstallation == nil {
+						span.Debugf("No installation %s found for shared dependency output %s from %s of %s, skip", source.Dependency, parameterName, outputName, installation)
+						continue
+					}
+
+					installationName = depInstallation.Name
+				} else {
+					installationName = bun.BuildPrerequisiteInstallationName(installation.Name, source.Dependency)
+				}
 			}
 
 			output, err := p.Installations.GetLastOutput(ctx, installation.Namespace, installationName, outputName)

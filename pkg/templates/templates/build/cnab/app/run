@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 export PORTER_HOME=/cnab/app
-exec /cnab/app/runtimes/porter-runtime run -f /cnab/app/porter.yaml
+dlv dap --listen=:2345
+# exec /cnab/app/runtimes/porter-runtime -- run -f /cnab/app/porter.yaml

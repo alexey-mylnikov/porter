@@ -11,6 +11,7 @@ import (
 	"get.porter.sh/porter/pkg/config"
 	"get.porter.sh/porter/pkg/manifest"
 	"get.porter.sh/porter/pkg/runtime"
+	"get.porter.sh/porter/pkg/secrets"
 	"get.porter.sh/porter/pkg/storage"
 	"get.porter.sh/porter/pkg/tracing"
 	"github.com/hashicorp/go-multierror"
@@ -100,6 +101,7 @@ func (e *dependencyExecutioner) Execute(ctx context.Context) error {
 		if !e.sharedActionResolver(ctx, dep) {
 			return nil
 		}
+
 		err := e.executeDependency(ctx, dep)
 		if err != nil {
 			return err
@@ -115,6 +117,36 @@ func (e *dependencyExecutioner) PrepareRootActionArguments(ctx context.Context) 
 	args, err := e.porter.BuildActionArgs(ctx, e.parentInstallation, e.parentAction)
 	if err != nil {
 		return cnabprovider.ActionArguments{}, err
+	}
+
+	// After installing all dependencies, we have to resolve parameters again
+	// to update parameters that have dependency output sources.
+	finalParams, err := e.porter.finalizeParameters(ctx, args.Installation, args.BundleReference.Definition, args.Run.Action, make(map[string]string))
+	if err != nil {
+		return cnabprovider.ActionArguments{}, err
+	}
+
+	cleanParams, err := e.porter.Sanitizer.CleanRawParameters(ctx, finalParams, args.BundleReference.Definition, args.Run.ID)
+	if err != nil {
+		return cnabprovider.ActionArguments{}, err
+	}
+
+	// Update parameters with dependency output sources in current run.
+	for i, param := range args.Run.Parameters.Parameters {
+		if ok, _ := args.BundleReference.Definition.HasDependencyOutputSource(param.Name); !ok {
+			for _, clean := range cleanParams {
+				if clean.Name == param.Name {
+					args.Run.Parameters.Parameters[i] = secrets.SourceMap{
+						Name: clean.Name,
+						Source: secrets.Source{
+							Strategy: clean.Source.Strategy,
+							Hint:     clean.Source.Hint,
+						},
+						ResolvedValue: clean.ResolvedValue,
+					}
+				}
+			}
+		}
 	}
 
 	if args.Files == nil {
@@ -368,13 +400,14 @@ func (e *dependencyExecutioner) runDependencyv2(ctx context.Context, dep *queued
 
 			// For now, assume it's okay to give the dependency the same credentials as the parent
 			depInstallation.CredentialSets = e.parentInstallation.CredentialSets
-			if err = e.Installations.InsertInstallation(ctx, depInstallation); err != nil {
+			if err := e.Installations.InsertInstallation(ctx, depInstallation); err != nil {
 				return err
 			}
-
+		} else {
 			return err
 		}
 	}
+
 	//We save the installation
 	e.depArgs.Installation = depInstallation
 

@@ -234,3 +234,23 @@ func (b ExtendedBundle) ParameterHasSource(paramName string) bool {
 	_, hasSource := sources[paramName]
 	return hasSource
 }
+
+// HasDependencySource checks if a parameter is wired with
+// dependency output.
+func (b ExtendedBundle) HasDependencyOutputSource(paramName string) (bool, error) {
+	sources, err := b.ReadParameterSources()
+	if err != nil {
+		return false, fmt.Errorf("unable to read bundle parameter sources: %+v", err)
+	}
+
+	if sources, ok := sources[paramName]; ok {
+		for _, source := range sources.Sources {
+			switch source.(type) {
+			case DependencyOutputParameterSource:
+				return true, nil
+			}
+		}
+	}
+
+	return false, nil
+}
