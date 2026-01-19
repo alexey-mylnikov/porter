@@ -19,6 +19,7 @@ import (
 	storageplugins "get.porter.sh/porter/pkg/storage/plugins"
 	"get.porter.sh/porter/pkg/storage/plugins/mongodb"
 	"get.porter.sh/porter/pkg/storage/plugins/mongodb_docker"
+	"get.porter.sh/porter/pkg/storage/plugins/sqlite"
 	"get.porter.sh/porter/pkg/tracing"
 	"github.com/hashicorp/go-plugin"
 )
@@ -144,6 +145,13 @@ func getInternalPlugins() map[string]InternalPlugin {
 			ProtocolVersion: storageplugins.PluginProtocolVersion,
 			Create: func(c *config.Config, pluginCfg interface{}) (plugin.Plugin, error) {
 				return mongodb_docker.NewPlugin(c.Context, pluginCfg)
+			},
+		},
+		sqlite.PluginKey: {
+			Interface:       storageplugins.PluginInterface,
+			ProtocolVersion: storageplugins.PluginProtocolVersion,
+			Create: func(c *config.Config, pluginCfg interface{}) (plugin.Plugin, error) {
+				return sqlite.NewPlugin(c, pluginCfg)
 			},
 		},
 		notation.PluginKey: {
