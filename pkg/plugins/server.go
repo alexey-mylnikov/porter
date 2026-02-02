@@ -36,6 +36,7 @@ func ServeMany(c *portercontext.Context, pluginMap map[int]plugin.PluginSet) {
 				grpc.ChainUnaryInterceptor(
 					makeLogUnaryHandler(c),
 					makePanicHandler()),
+				grpc.MaxRecvMsgSize(1024*1024*16),
 			)
 			return grpc.NewServer(opts...)
 		},
