@@ -34,6 +34,7 @@ porter installations install [INSTALLATION] [flags]
   porter installation install
   porter installation install MyAppFromReference --reference ghcr.io/getporter/examples/kubernetes:v0.2.0 --namespace dev
   porter installation install --reference localhost:5000/ghcr.io/getporter/examples/kubernetes:v0.2.0 --insecure-registry --force
+  porter installation install --archive /tmp/mybun.tgz
   porter installation install MyAppInDev --file myapp/bundle.json
   porter installation install --parameter-set azure --param test-mode=true --param header-color=blue
   porter installation install --param config=@config.json
@@ -47,6 +48,7 @@ porter installations install [INSTALLATION] [flags]
 
 ```
       --allow-docker-host-access        Controls if the bundle should have access to the host's Docker daemon with elevated privileges. See https://porter.sh/configuration/#allow-docker-host-access for the full implications of this flag.
+  -a, --archive string                  Path to the bundle archive in .tgz format
       --autobuild-disabled              Do not automatically build the bundle from source when the last build is out-of-date.
       --cnab-file string                Path to the CNAB bundle.json file.
   -c, --credential-set stringArray      Credential sets to use when running the bundle. It should be a named set of credentials and may be specified multiple times.

@@ -177,7 +177,9 @@ func (e *dependencyExecutioner) identifyDependencies(ctx context.Context) error 
 
 	// Load parent CNAB bundle definition
 	var bun cnab.ExtendedBundle
-	if e.parentOpts.CNABFile != "" {
+	if e.parentArgs.BundleReference.Definition.Name != "" {
+		bun = e.parentArgs.BundleReference.Definition
+	} else if e.parentOpts.CNABFile != "" {
 		bundle, err := e.CNAB.LoadBundle(e.parentOpts.CNABFile)
 		if err != nil {
 			return span.Error(err)

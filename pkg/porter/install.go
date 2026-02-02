@@ -29,8 +29,8 @@ func (o InstallOptions) Validate(ctx context.Context, args []string, p *Porter) 
 
 	// Install requires special logic because the bundle must always be specified, including a name isn't enough.
 	// So we have a slight repeat of the logic performed in by the generic bundle action args
-	if o.File == "" && o.CNABFile == "" && o.Reference == "" {
-		return errors.New("No bundle specified. Either --reference, --file or --cnab-file must be specified or the current directory must contain a porter.yaml file.")
+	if o.File == "" && o.CNABFile == "" && o.Reference == "" && o.ArchiveFile == "" {
+		return errors.New("No bundle specified. Either --archive, --reference, --file or --cnab-file must be specified or the current directory must contain a porter.yaml file.")
 	}
 
 	return nil

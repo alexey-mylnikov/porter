@@ -235,6 +235,7 @@ The docker driver runs the bundle container using the local Docker host. To use 
 		Example: `  porter installation install
   porter installation install MyAppFromReference --reference ghcr.io/getporter/examples/kubernetes:v0.2.0 --namespace dev
   porter installation install --reference localhost:5000/ghcr.io/getporter/examples/kubernetes:v0.2.0 --insecure-registry --force
+  porter installation install --archive /tmp/mybun.tgz
   porter installation install MyAppInDev --file myapp/bundle.json
   porter installation install --parameter-set azure --param test-mode=true --param header-color=blue
   porter installation install --param config=@config.json
@@ -257,6 +258,7 @@ The docker driver runs the bundle container using the local Docker host. To use 
 	f.StringSliceVarP(&opts.Labels, "label", "l", nil,
 		"Associate the specified labels with the installation. May be specified multiple times.")
 	f.BoolVar(&opts.VerifyBundleBeforeExecution, "verify-bundle", false, "Verify the bundle signature before executing")
+	f.StringVarP(&opts.ArchiveFile, "archive", "a", "", "Path to the bundle archive in .tgz format")
 	addBundleActionFlags(f, opts)
 
 	// Allow configuring the --driver flag with runtime-driver, to avoid conflicts with other commands

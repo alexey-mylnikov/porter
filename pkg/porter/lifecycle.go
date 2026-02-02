@@ -192,6 +192,9 @@ type BundleReferenceOptions struct {
 	installationOptions
 	BundlePullOptions
 
+	// ArchiveFile is a path to a bundle archive in .tgz format.
+	ArchiveFile string
+
 	// DO NOT ACCESS DIRECTLY, use GetBundleReference to retrieve and cache the value
 	bundleRef *cnab.BundleReference
 }
@@ -218,6 +221,18 @@ func (o *BundleReferenceOptions) UnsetBundleReference() {
 func (o *BundleReferenceOptions) Validate(ctx context.Context, args []string, porter *Porter) error {
 	var err error
 
+	if o.ArchiveFile != "" {
+		if o.Reference != "" || o.File != "" || o.CNABFile != "" {
+			return errors.New("cannot combine --archive with --reference, --file, or --cnab-file")
+		}
+		if _, err := porter.FileSystem.Stat(o.ArchiveFile); err != nil {
+			return fmt.Errorf("unable to access --archive %s: %w", o.ArchiveFile, err)
+		}
+		o.ReferenceSet = true
+		o.File = ""
+		o.CNABFile = ""
+	}
+
 	if o.Reference != "" {
 		// Ignore anything set based on the bundle directory we are in, go off of the tag
 		o.File = ""
@@ -234,8 +249,8 @@ func (o *BundleReferenceOptions) Validate(ctx context.Context, args []string, po
 		return err
 	}
 
-	if o.Name == "" && o.File == "" && o.CNABFile == "" && o.Reference == "" {
-		return errors.New("no bundle specified. Either an installation name, --reference, --file or --cnab-file must be specified or the current directory must contain a porter.yaml file")
+	if o.Name == "" && o.File == "" && o.CNABFile == "" && o.Reference == "" && o.ArchiveFile == "" {
+		return errors.New("no bundle specified. Either an installation name, --archive, --reference, --file or --cnab-file must be specified or the current directory must contain a porter.yaml file")
 	}
 
 	return nil
@@ -266,7 +281,13 @@ func (p *Porter) resolveBundleReference(ctx context.Context, opts *BundleReferen
 	}
 
 	// load the referenced bundle
-	if opts.Reference != "" {
+	if opts.ArchiveFile != "" {
+		archiveBundle, err := p.loadBundleFromArchive(ctx, opts.ArchiveFile)
+		if err != nil {
+			return cnab.BundleReference{}, err
+		}
+		bundleRef = archiveBundle
+	} else if opts.Reference != "" {
 		if err := useReference(opts.GetReference()); err != nil {
 			return cnab.BundleReference{}, err
 		}
