@@ -10,6 +10,7 @@ import (
 
 	"get.porter.sh/porter/pkg/cnab"
 	"get.porter.sh/porter/pkg/tracing"
+	dockerclient "github.com/docker/docker/client"
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/daemon"
@@ -40,6 +41,7 @@ func (p *Porter) loadBundleFromArchive(ctx context.Context, archiveFile string) 
 	extractedDir := filepath.Join(tmpDir, strings.TrimSuffix(filepath.Base(source), ".tgz"))
 	layoutDir := filepath.Join(extractedDir, "artifacts/layout")
 
+	log.Infof("Importing images from archive into the local Docker cache. This may take some time.")
 	loaded, imageRefs, err := loadImagesFromLayout(ctx, layoutDir)
 	if err != nil {
 		return cnab.BundleReference{}, log.Errorf("failed to load images from archive %s: %w", archiveFile, err)
@@ -88,6 +90,12 @@ func loadImagesFromLayout(ctx context.Context, layoutDir string) (int, map[strin
 	}
 
 	platform := v1.Platform{OS: runtime.GOOS, Architecture: runtime.GOARCH}
+	cli, err := dockerclient.NewClientWithOpts(dockerclient.WithAPIVersionNegotiation())
+	if err != nil {
+		return 0, nil, err
+	}
+	defer cli.Close()
+
 	loaded := 0
 	imageRefs := make(map[string]string, len(refDescriptors))
 	for refName, descs := range refDescriptors {
@@ -101,6 +109,11 @@ func loadImagesFromLayout(ctx context.Context, layoutDir string) (int, map[strin
 		tag, tagRef, err := resolveLoadTag(refName)
 		if err != nil {
 			return 0, nil, fmt.Errorf("unable to resolve tag for %s: %w", refName, err)
+		}
+
+		if imageExists(ctx, cli, tagRef) {
+			imageRefs[refName] = tagRef
+			continue
 		}
 
 		if _, err := daemon.Write(tag, img, daemon.WithContext(ctx)); err != nil {
@@ -184,4 +197,9 @@ func imageFromIndex(index v1.ImageIndex, platform v1.Platform) (v1.Image, error)
 		return nil, errors.New("image index has no manifests")
 	}
 	return imageFromDescriptor(index, manifest.Manifests[0], platform)
+}
+
+func imageExists(ctx context.Context, cli *dockerclient.Client, ref string) bool {
+	_, _, err := cli.ImageInspectWithRaw(ctx, ref)
+	return err == nil
 }
